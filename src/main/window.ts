@@ -82,9 +82,23 @@ export class PipWindow {
     // renderer drops the mandatory video track immediately.
     this.win.webContents.session.setDisplayMediaRequestHandler((_request, callback) => {
       desktopCapturer
-        .getSources({ types: ['screen'] })
-        .then((sources) => callback({ video: sources[0], audio: 'loopback' }))
-        .catch(() => callback({}));
+        .getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
+        .then((sources) => {
+          if (sources.length === 0) throw new Error('no screen sources');
+          callback({ video: sources[0], audio: 'loopback' });
+        })
+        .catch((err) => {
+          // On macOS this fails without the Screen Recording permission.
+          // Denying needs a null/undefined response — an empty object makes
+          // Electron throw "Video was requested, but no video stream was
+          // provided" as an unhandled rejection. The renderer falls back to
+          // rhythm-only scoring on denial.
+          console.warn(
+            'System-audio capture unavailable (on macOS, grant Screen Recording in System Settings → Privacy & Security):',
+            err instanceof Error ? err.message : err
+          );
+          (callback as (streams?: Electron.Streams) => void)();
+        });
     });
 
     // Open any external links in the system browser, never in the PiP window.

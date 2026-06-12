@@ -5,9 +5,9 @@
  * newer than the build output, so plain `spotty` always starts fast and
  * up to date without a dev server.
  *
- *   spotty           launch (rebuilds only if out/ is stale)
- *   spotty --dev     hot-reload development mode (electron-vite dev)
- *   spotty --build   force a rebuild before launching
+ *   spotty               launch (rebuilds only if out/ is stale)
+ *   spotty --dev / -d    hot-reload development mode (electron-vite dev)
+ *   spotty --build / -b  force a rebuild before launching
  */
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
@@ -19,9 +19,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(root, 'package.json'));
 
 const args = process.argv.slice(2);
-const dev = args.includes('--dev');
-const forceBuild = args.includes('--build');
-const passthrough = args.filter((a) => a !== '--dev' && a !== '--build');
+const dev = args.includes('--dev') || args.includes('-d');
+const forceBuild = args.includes('--build') || args.includes('-b');
+const passthrough = args.filter((a) => !['--dev', '-d', '--build', '-b'].includes(a));
 
 if (!existsSync(join(root, 'node_modules'))) {
   console.error(`Dependencies missing — run \`npm install\` in ${root} first.`);

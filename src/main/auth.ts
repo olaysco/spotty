@@ -24,6 +24,9 @@ function base64url(buffer: Buffer): string {
   return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+/** The token endpoint rejected the grant itself (revoked/expired) — not transient. */
+class TokenRejectedError extends Error {}
+
 /**
  * Spotify OAuth using the Authorization Code + PKCE flow (no client secret).
  * Opens the system browser and captures the redirect on a local loopback server.
@@ -34,7 +37,11 @@ export class SpotifyAuth {
   private tokens: TokenSet | null = null;
   private server: Server | null = null;
   private refreshPromise: Promise<void> | null = null;
+  private nextRefreshAt = 0;
   pending = false;
+
+  /** Fired when auth state changes outside an explicit IPC call (e.g. forced sign-out). */
+  onChanged: (() => void) | null = null;
 
   constructor(private readonly getClientId: () => string) {}
 
@@ -78,6 +85,12 @@ export class SpotifyAuth {
   logout(): void {
     this.tokens = null;
     this.store.replace({ payload: null, encrypted: false });
+    this.onChanged?.();
+  }
+
+  /** Forces the next getAccessToken() to refresh (e.g. after an API 401). */
+  invalidateAccessToken(): void {
+    if (this.tokens) this.tokens.expiresAt = 0;
   }
 
   /** Returns a valid access token, refreshing it if it is about to expire. */
@@ -85,10 +98,12 @@ export class SpotifyAuth {
     if (!this.tokens) return null;
     if (Date.now() < this.tokens.expiresAt - 60_000) return this.tokens.accessToken;
 
-    this.refreshPromise ??= this.refresh().finally(() => {
-      this.refreshPromise = null;
-    });
-    await this.refreshPromise;
+    if (Date.now() >= this.nextRefreshAt) {
+      this.refreshPromise ??= this.refresh().finally(() => {
+        this.refreshPromise = null;
+      });
+      await this.refreshPromise;
+    }
     return this.tokens?.accessToken ?? null;
   }
 
@@ -102,9 +117,18 @@ export class SpotifyAuth {
     try {
       const next = await this.requestTokens(body, this.tokens.refreshToken);
       this.setTokens(next);
+      this.nextRefreshAt = 0;
     } catch (err) {
-      console.error('Token refresh failed, signing out:', err);
-      this.logout();
+      if (err instanceof TokenRejectedError) {
+        // The refresh token itself was revoked or expired — reconnect needed.
+        console.error('Spotify rejected the refresh token, signing out:', err);
+        this.logout();
+      } else {
+        // Network blip / Spotify hiccup (laptop wake is a classic): keep the
+        // tokens and retry shortly instead of destroying the session.
+        console.warn('Token refresh failed transiently, will retry:', err);
+        this.nextRefreshAt = Date.now() + 10_000;
+      }
     }
   }
 
