@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Floating, always-on-top Picture-in-Picture Spotify player with real-time synchronized lyrics",
   "main": "out/main/index.js",
+  "bin": {
+    "spotty": "bin/spotty.mjs"
+  },
   "author": "olaysco",
   "license": "MIT",
   "homepage": "https://github.com/olaysco/spotty",
