@@ -15,6 +15,7 @@ A floating, always-on-top Picture-in-Picture music player for Spotify with **rea
 - **Click-through mode** — let mouse clicks pass through the overlay (restore via the tray icon or `Ctrl+Alt+P`).
 - **Customization** — opacity, font size, lyric alignment (left/center/right), lock position, animations toggle, launch at startup, start hidden.
 - **Track-change toast** — a brief popup with artwork and artist when a new song starts.
+- **Sing Mode** 🎤 — click the mic icon to score your singing on any track. Your voice is pitch-tracked from the microphone (YIN), and where supported (macOS 13+/Windows) the app also captures **system audio** to pitch-track the song itself. You get a live pitch ribbon (your trail vs. the song's), a note + cents readout, a **Tune** score (octave-agnostic pitch-class match against the song during lyric lines, with a latency-tolerant alignment window), a **Rhythm** score (singing during the synced lyric lines), and a running grade. **Wear headphones** — otherwise the mic hears the song instead of you. Honest limitation: the song's pitch is the *dominant pitch of the full mix*, which usually follows the vocal during sung lines but isn't an isolated vocal melody, so treat Tune as "in tune with the song," not note-perfect melody grading. Without system-audio capture it falls back to rhythm-only scoring and says so. All audio stays on your machine — nothing is recorded or uploaded.
 - **Global shortcuts** — control playback from anywhere:
 
   | Shortcut | Action |

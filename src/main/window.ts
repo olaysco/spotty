@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, shell } from 'electron';
+import { BrowserWindow, desktopCapturer, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { MODE_SIZES, type Settings, type WindowMode } from '@shared/types';
 import { JsonStore } from './store';
@@ -75,6 +75,16 @@ export class PipWindow {
     this.win.on('resized', persistBounds);
     this.win.on('closed', () => {
       this.win = null;
+    });
+
+    // Sing Mode: grant getDisplayMedia with system-audio loopback so the
+    // renderer can pitch-track what's playing (macOS 13+/Windows). The
+    // renderer drops the mandatory video track immediately.
+    this.win.webContents.session.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen'] })
+        .then((sources) => callback({ video: sources[0], audio: 'loopback' }))
+        .catch(() => callback({}));
     });
 
     // Open any external links in the system browser, never in the PiP window.

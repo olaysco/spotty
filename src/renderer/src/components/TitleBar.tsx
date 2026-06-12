@@ -1,10 +1,12 @@
 import type { Settings, WindowMode } from '@shared/types';
-import { CloseIcon, GearIcon, MinusIcon, PinIcon } from './Icons';
+import { CloseIcon, GearIcon, MicIcon, MinusIcon, PinIcon } from './Icons';
 
 interface TitleBarProps {
   settings: Settings;
   updateSettings: (patch: Partial<Settings>) => void;
   onOpenSettings: () => void;
+  singEnabled: boolean;
+  onToggleSing: () => void;
 }
 
 const MODES: { mode: WindowMode; label: string }[] = [
@@ -14,7 +16,13 @@ const MODES: { mode: WindowMode; label: string }[] = [
 ];
 
 /** Hover-revealed top bar: window mode switcher, pin, settings, hide, quit. */
-export default function TitleBar({ settings, updateSettings, onOpenSettings }: TitleBarProps): JSX.Element {
+export default function TitleBar({
+  settings,
+  updateSettings,
+  onOpenSettings,
+  singEnabled,
+  onToggleSing
+}: TitleBarProps): JSX.Element {
   return (
     <div className="app-drag flex h-8 shrink-0 items-center justify-between px-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
       <div className="app-no-drag flex items-center gap-0.5 rounded-full bg-black/25 p-0.5">
@@ -32,6 +40,13 @@ export default function TitleBar({ settings, updateSettings, onOpenSettings }: T
         ))}
       </div>
       <div className="app-no-drag flex items-center gap-1">
+        <button
+          onClick={onToggleSing}
+          className={`rounded-full p-1.5 transition hover:bg-white/15 ${singEnabled ? 'text-[var(--accent)]' : 'opacity-60'}`}
+          title="Sing Mode — score your singing (wear headphones)"
+        >
+          <MicIcon size={13} />
+        </button>
         <button
           onClick={() => updateSettings({ alwaysOnTop: !settings.alwaysOnTop })}
           className={`rounded-full p-1.5 transition hover:bg-white/15 ${settings.alwaysOnTop ? 'text-[var(--accent)]' : 'opacity-60'}`}

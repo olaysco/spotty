@@ -5,12 +5,14 @@ import { NoteIcon } from './components/Icons';
 import LoginView from './components/LoginView';
 import LyricsView from './components/LyricsView';
 import SettingsPanel from './components/SettingsPanel';
+import SingMode from './components/SingMode';
 import TitleBar from './components/TitleBar';
 import TrackToast from './components/TrackToast';
 import { useAccentColor } from './hooks/useAccentColor';
 import { useLyrics } from './hooks/useLyrics';
 import { usePlayback } from './hooks/usePlayback';
 import { useSettings } from './hooks/useSettings';
+import { useSing } from './hooks/useSing';
 
 export default function App(): JSX.Element {
   const { settings, update } = useSettings();
@@ -19,6 +21,15 @@ export default function App(): JSX.Element {
   const accent = useAccentColor(playback?.track?.artworkUrl);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [singEnabled, setSingEnabled] = useState(false);
+
+  const sing = useSing({
+    enabled: singEnabled && settings.windowMode !== 'small',
+    trackId: playback?.track?.id,
+    progressMs,
+    isPlaying: playback?.isPlaying ?? false,
+    lines: lyrics?.synced ? lyrics.lines : []
+  });
 
   useEffect(() => {
     void window.miniplayer.auth.status().then(setAuth);
@@ -56,7 +67,13 @@ export default function App(): JSX.Element {
         <LoginView auth={auth} initialClientId={settings.spotifyClientId} />
       ) : (
         <>
-          <TitleBar settings={settings} updateSettings={update} onOpenSettings={() => setSettingsOpen(true)} />
+          <TitleBar
+            settings={settings}
+            updateSettings={update}
+            onOpenSettings={() => setSettingsOpen(true)}
+            singEnabled={singEnabled}
+            onToggleSing={() => setSingEnabled((v) => !v)}
+          />
           {/* Compact/expanded modes already show the track in the header. */}
           {mode === 'small' && <TrackToast track={track} />}
 
@@ -96,6 +113,8 @@ export default function App(): JSX.Element {
                   dense={mode === 'small'}
                 />
               </div>
+
+              {singEnabled && mode !== 'small' && <SingMode sing={sing} />}
 
               {mode === 'small' ? (
                 <p className="shrink-0 truncate px-3 pb-1.5 text-center text-[10px] opacity-50">
