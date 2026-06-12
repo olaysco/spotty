@@ -106,6 +106,7 @@ async function main(): Promise<void> {
 
   await app.whenReady();
   app.setAppUserModelId('com.olaysco.spotify-miniplayer-pip');
+  auth.init(); // safeStorage is only reliable after the app is ready
 
   pip.create(settingsStore.get());
   ({ refresh: refreshTray } = createTray(pip, spotify, () => settingsStore.get(), (patch) => void updateSettings(patch)));
