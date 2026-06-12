@@ -144,6 +144,10 @@ export class SpotifyService {
     if (!token) return null;
     try {
       const res = await fetch(`${API}${path}`, { method, headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) {
+        // Token revoked or stale server-side: force a refresh on the next poll.
+        this.auth.invalidateAccessToken();
+      }
       if (res.status === 429) {
         const retryAfter = Number(res.headers.get('Retry-After') ?? '5');
         this.backoffUntil = Date.now() + retryAfter * 1000;

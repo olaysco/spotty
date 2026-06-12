@@ -54,6 +54,10 @@ async function main(): Promise<void> {
     return next;
   };
 
+  // Without this, a forced sign-out (revoked refresh token) would leave the
+  // renderer showing "Nothing playing" forever instead of the login screen.
+  auth.onChanged = () => send(IPC.EVENT_AUTH, authStatus());
+
   spotify.onState = (state) => send(IPC.EVENT_PLAYBACK, state);
   spotify.onTrackChange = (track: TrackInfo | null) => {
     if (!track) {
