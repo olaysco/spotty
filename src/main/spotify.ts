@@ -29,6 +29,7 @@ export class SpotifyService {
   private timer: NodeJS.Timeout | null = null;
   private lastTrackId: string | null = null;
   private backoffUntil = 0;
+  private lastDebugSig = '';
   private state: PlaybackState = {
     track: null,
     isPlaying: false,
@@ -92,20 +93,42 @@ export class SpotifyService {
     return this.state.progressMs + (Date.now() - this.state.fetchedAt);
   }
 
+  /** Logs a line only when the poll outcome changes, so it's not 1/sec spam. */
+  private debug(sig: string): void {
+    if (sig !== this.lastDebugSig) {
+      this.lastDebugSig = sig;
+      console.log(`[spotty] player: ${sig}`);
+    }
+  }
+
   private async poll(): Promise<void> {
     if (Date.now() < this.backoffUntil || !this.auth.authenticated) return;
     const res = await this.request('GET', '/me/player');
-    if (!res) return;
+    if (!res) {
+      this.debug('no response (token/network) — see warnings above');
+      return;
+    }
 
     if (res.status === 204) {
-      // No active device.
+      // No active device: Spotify reports this a few minutes after playback
+      // stops on every device. Start playback again to revive it.
+      this.debug('204 no active device');
       this.publish({ track: null, isPlaying: false, progressMs: 0, fetchedAt: Date.now(), volumePercent: null, deviceName: null });
       return;
     }
-    if (!res.ok) return;
+    if (!res.ok) {
+      this.debug(`HTTP ${res.status} (not OK)`);
+      return;
+    }
 
     const body = (await res.json().catch(() => null)) as SpotifyPlayerResponse | null;
-    if (!body) return;
+    if (!body) {
+      this.debug('200 but body unparseable');
+      return;
+    }
+    this.debug(
+      `200 type=${body.currently_playing_type} item=${body.item ? body.item.name : 'null'} playing=${body.is_playing} device=${body.device?.name ?? 'null'}`
+    );
 
     const item = body.currently_playing_type === 'track' ? body.item : null;
     const track: TrackInfo | null = item
