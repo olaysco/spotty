@@ -20,6 +20,9 @@ mac:
     - dmg
   icon: resources/icon.png
   category: public.app-category.music
+  extendInfo:
+    NSMicrophoneUsageDescription: Sing Mode listens to your voice to show your pitch and score your singing.
+    NSAudioCaptureUsageDescription: Sing Mode captures system audio to compare your pitch with the song.
 linux:
   target:
     - AppImage
