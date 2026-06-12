@@ -38,11 +38,19 @@ export default function SingMode({ sing }: { sing: SingState }): JSX.Element {
         </span>
       </div>
       <PitchRibbon sing={sing} />
-      {!sing.loopback && (
+      {sing.bleed ? (
+        <p className="mt-1 text-center text-[9px] font-semibold text-amber-300">
+          🎧 Speaker sound is reaching your mic — scoring paused. Use headphones.
+        </p>
+      ) : !sing.loopback ? (
         <p className="mt-1 text-center text-[9px] opacity-40">
           System-audio capture unavailable — scoring rhythm only. Wear headphones for best results.
         </p>
-      )}
+      ) : sing.tunePct === null && sing.rhythmPct === null ? (
+        <p className="mt-1 text-center text-[9px] opacity-40">
+          🎧 Wear headphones so the mic hears only you.
+        </p>
+      ) : null}
     </div>
   );
 }

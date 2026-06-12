@@ -9,6 +9,11 @@ const RIBBON_SECONDS = 10;
 const ALIGN_WINDOW_MS = 600;
 /** Octave-agnostic match tolerance in semitones. */
 const TUNE_TOLERANCE = 0.6;
+/** Bleed detector: rolling window of instrumental frames (~10s) and onset/clear ratios. */
+const BLEED_WINDOW = 200;
+const BLEED_MIN_FRAMES = 40;
+const BLEED_ON_RATIO = 0.65;
+const BLEED_OFF_RATIO = 0.4;
 
 export interface SingFrame {
   at: number; // performance.now()
@@ -21,6 +26,8 @@ export interface SingState {
   micError: string | null;
   /** True when system-audio capture works and tune scoring is real. */
   loopback: boolean;
+  /** True while speaker audio is leaking into the mic; scoring is paused. */
+  bleed: boolean;
   userNote: string | null;
   userCents: number;
   tunePct: number | null; // null until enough data / no loopback
@@ -57,6 +64,7 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
     active: false,
     micError: null,
     loopback: false,
+    bleed: false,
     userNote: null,
     userCents: 0,
     tunePct: null,
@@ -78,7 +86,7 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
 
   useEffect(() => {
     if (!enabled) {
-      setState((s) => ({ ...s, active: false, micError: null, ribbon: [] }));
+      setState((s) => ({ ...s, active: false, micError: null, bleed: false, ribbon: [] }));
       return;
     }
 
@@ -88,6 +96,13 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
     let disposed = false;
     const ribbon: SingFrame[] = [];
     const songHistory: { at: number; midi: number }[] = [];
+    // Bleed detector: Chromium's echoCancellation can't remove Spotify's
+    // output (it never sees it as its own playback), so speaker sound can
+    // reach the mic and score as perfect singing. During instrumental
+    // passages nobody should be tracking the song's pitch — a sustained
+    // match there means the mic is hearing the speakers.
+    const instrumental: boolean[] = [];
+    let bleed = false;
 
     const start = async (): Promise<void> => {
       try {
@@ -129,8 +144,25 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
         const inLyricLine =
           playing && lrc.some((l) => l.text.length > 0 && pos >= l.startMs && pos < l.endMs);
 
+        if (playing && !inLyricLine && song?.midi != null) {
+          instrumental.push(
+            user.midi != null && pitchClassDistance(user.midi, song.midi) <= TUNE_TOLERANCE
+          );
+          if (instrumental.length > BLEED_WINDOW) instrumental.shift();
+          if (instrumental.length >= BLEED_MIN_FRAMES) {
+            const ratio = instrumental.filter(Boolean).length / instrumental.length;
+            if (!bleed && ratio >= BLEED_ON_RATIO) {
+              bleed = true;
+              // Whatever accumulated so far was inflated by the speakers.
+              scores.current = { tuneHits: 0, tuneTotal: 0, voiced: 0, lineTime: 0 };
+            } else if (bleed && ratio <= BLEED_OFF_RATIO) {
+              bleed = false;
+            }
+          }
+        }
+
         const s = scores.current;
-        if (inLyricLine) {
+        if (inLyricLine && !bleed) {
           s.lineTime++;
           if (user.midi != null) s.voiced++;
           if (loop && user.midi != null) {
@@ -146,6 +178,7 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
           active: true,
           micError: null,
           loopback: loop !== null,
+          bleed,
           userNote: user.midi != null ? midiToNoteName(user.midi) : null,
           userCents: user.midi != null ? centsOff(user.midi) : 0,
           tunePct,
