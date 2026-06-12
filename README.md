@@ -48,6 +48,17 @@ npm run dev        # development with hot reload
 
 On first launch, paste your Client ID and click **Connect Spotify** — your browser opens for the one-time login, then the PiP window takes over.
 
+### Optional: launch with `spotty` from anywhere
+
+```bash
+npm link           # one-time, from the repo root
+spotty             # launch (rebuilds automatically when sources changed)
+spotty --dev       # hot-reload development mode
+spotty --build     # force a rebuild before launching
+```
+
+`npm link` symlinks the `spotty` command onto your PATH; remove it later with `npm unlink -g spotify-miniplayer-pip`.
+
 ### 3. Build installers
 
 ```bash
