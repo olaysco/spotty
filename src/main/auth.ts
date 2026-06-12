@@ -36,7 +36,13 @@ export class SpotifyAuth {
   private refreshPromise: Promise<void> | null = null;
   pending = false;
 
-  constructor(private readonly getClientId: () => string) {
+  constructor(private readonly getClientId: () => string) {}
+
+  /**
+   * Loads persisted tokens. Must be called after the app `ready` event,
+   * since safeStorage is only reliable once the keychain is available.
+   */
+  init(): void {
     this.tokens = this.loadTokens();
   }
 
@@ -205,7 +211,10 @@ export class SpotifyAuth {
         : payload;
       return JSON.parse(json) as TokenSet;
     } catch (err) {
-      console.warn('Failed to load stored tokens:', err);
+      // Keychain key changed or data is corrupt; clear it so we don't keep
+      // failing on every launch and the next login can persist cleanly.
+      console.warn('Stored Spotify tokens could not be decrypted; clearing them. Please reconnect.', err);
+      this.store.replace({ payload: null, encrypted: false });
       return null;
     }
   }
