@@ -6,8 +6,8 @@ const API = 'https://api.spotify.com/v1';
 // buys nothing but rate-limit risk. 1s was aggressive enough to trip
 // Spotify's 429 limiter across app restarts.
 const POLL_INTERVAL_MS = 3000;
-/** Cap an over-long Retry-After so the player can't appear permanently dead. */
-const MAX_BACKOFF_MS = 60_000;
+/** Cap our retry cadence during a long ban; we still honor Spotify's wait up to here. */
+const MAX_BACKOFF_MS = 300_000;
 
 interface SpotifyTrack {
   id: string;
@@ -180,7 +180,11 @@ export class SpotifyService {
         const retryAfter = Number(res.headers.get('Retry-After') ?? '5');
         const waitMs = Math.min(Math.max(retryAfter, 1) * 1000, MAX_BACKOFF_MS);
         this.backoffUntil = Date.now() + waitMs;
-        console.warn(`[spotty] rate limited (429); backing off ${Math.round(waitMs / 1000)}s`);
+        // Spotify's Retry-After is the *real* cooldown; we cap our retry
+        // cadence but report the true value so the wait is visible.
+        console.warn(
+          `[spotty] rate limited (429); Spotify says wait ${retryAfter}s, retrying in ${Math.round(waitMs / 1000)}s`
+        );
       }
       return res;
     } catch (err) {
