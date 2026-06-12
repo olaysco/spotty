@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LyricLine } from '@shared/types';
 import { centsOff, midiToNoteName, pitchClassDistance } from '@shared/pitch';
-import { PitchTracker } from '@/lib/PitchTracker';
+import { SingEngine } from '@/lib/SingEngine';
 
 const TICK_MS = 50;
 const RIBBON_SECONDS = 10;
@@ -90,8 +90,7 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
       return;
     }
 
-    let mic: PitchTracker | null = null;
-    let loop: PitchTracker | null = null;
+    let engine: SingEngine | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
     let disposed = false;
     const ribbon: SingFrame[] = [];
@@ -106,7 +105,10 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
 
     const start = async (): Promise<void> => {
       try {
-        mic = await PitchTracker.fromMic();
+        // Captures mic + system audio and runs echo cancellation so the
+        // speakers' sound doesn't score as singing. Loopback failure is
+        // swallowed inside (rhythm-only scoring); only a mic failure throws.
+        engine = await SingEngine.create();
       } catch (err) {
         if (!disposed) {
           setState((s) => ({
@@ -117,21 +119,16 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
         }
         return;
       }
-      try {
-        loop = await PitchTracker.fromLoopback();
-      } catch {
-        loop = null; // No system-audio capture: rhythm-only scoring.
-      }
       if (disposed) {
-        mic?.dispose();
-        loop?.dispose();
+        engine.dispose();
         return;
       }
+      const loop = engine.loopback;
 
       timer = setInterval(() => {
         const now = performance.now();
-        const user = mic!.read();
-        const song = loop?.read() ?? null;
+        const user = engine!.readUser();
+        const song = engine!.readSong();
 
         ribbon.push({ at: now, user: user.midi, song: song?.midi ?? null });
         while (ribbon.length > 0 && now - ribbon[0].at > RIBBON_SECONDS * 1000) ribbon.shift();
@@ -177,7 +174,7 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
         setState({
           active: true,
           micError: null,
-          loopback: loop !== null,
+          loopback: loop,
           bleed,
           userNote: user.midi != null ? midiToNoteName(user.midi) : null,
           userCents: user.midi != null ? centsOff(user.midi) : 0,
@@ -193,8 +190,7 @@ export function useSing({ enabled, trackId, progressMs, isPlaying, lines }: Inpu
     return () => {
       disposed = true;
       if (timer) clearInterval(timer);
-      mic?.dispose();
-      loop?.dispose();
+      engine?.dispose();
     };
   }, [enabled]);
 
