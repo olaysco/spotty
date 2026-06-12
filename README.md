@@ -4,6 +4,8 @@ A floating, always-on-top Picture-in-Picture music player for Spotify with **rea
 
 ![Electron](https://img.shields.io/badge/Electron-React%20%2B%20TypeScript-1db954) ![License](https://img.shields.io/badge/license-MIT-green)
 
+![Spotty floating over the desktop with synced lyrics](docs/screenshot.png)
+
 ## Features
 
 - **Floating PiP window** — frameless, always-on-top, draggable anywhere, resizable, remembers its position and size.
