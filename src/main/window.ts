@@ -37,6 +37,9 @@ export class PipWindow {
       minHeight: mode.minHeight,
       frame: false,
       transparent: true,
+      // The native shadow follows the rectangular window frame, which shows
+      // as a faint outline around the CSS-rounded content on macOS.
+      hasShadow: false,
       resizable: true,
       maximizable: false,
       fullscreenable: false,
