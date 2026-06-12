@@ -34,7 +34,7 @@ export default function App(): JSX.Element {
     <div
       className={`${dark ? 'dark text-white' : 'text-neutral-900'} ${settings.animations ? '' : 'no-animations'} group app-drag relative flex h-full flex-col overflow-hidden rounded-2xl border ${
         dark ? 'border-white/10' : 'border-black/10'
-      } shadow-2xl`}
+      }`}
       style={{ '--accent': accent, '--lyric-size': `${settings.fontSize}px` } as CSSProperties}
     >
       {/* Blurred artwork backdrop with theme-tinted glass overlay. */}
@@ -57,7 +57,8 @@ export default function App(): JSX.Element {
       ) : (
         <>
           <TitleBar settings={settings} updateSettings={update} onOpenSettings={() => setSettingsOpen(true)} />
-          <TrackToast track={track} />
+          {/* Compact/expanded modes already show the track in the header. */}
+          {mode === 'small' && <TrackToast track={track} />}
 
           {!track ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center opacity-50">
