@@ -140,7 +140,12 @@ export class SpotifyAuth {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new Error(`Spotify token request failed (${res.status}): ${text}`);
+      const message = `Spotify token request failed (${res.status}): ${text}`;
+      // 400 invalid_grant / 401 invalid_client mean the grant itself is dead
+      // (refresh token revoked or expired) — reconnecting is the only fix.
+      // 429/5xx/network are transient and must NOT destroy the session.
+      if (res.status === 400 || res.status === 401) throw new TokenRejectedError(message);
+      throw new Error(message);
     }
     const json = (await res.json()) as {
       access_token: string;
@@ -218,6 +223,7 @@ export class SpotifyAuth {
 
   private setTokens(tokens: TokenSet): void {
     this.tokens = tokens;
+    this.nextRefreshAt = 0; // clear any transient-failure backoff
     const json = JSON.stringify(tokens);
     if (safeStorage.isEncryptionAvailable()) {
       this.store.replace({ payload: safeStorage.encryptString(json).toString('base64'), encrypted: true });
